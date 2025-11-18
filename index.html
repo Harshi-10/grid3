@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Masai Calculator (compact)</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body{
+    font-family: "Segoe UI", Roboto, Arial, sans-serif;
+    background: #ffffff;
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    color:#102028;
+  }
+
+  /* Page title */
+  h1{
+    color:#0f7c70;
+    text-align:center;
+    font-size:34px;
+    margin-bottom:18px;
+    font-weight:700;
+  }
+
+  /* wrapper to center title + calculator */
+  .wrap{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:12px;
+  }
+
+  /* card that holds the calculator */
+  .card{
+    width: 240px;               /* compact width */
+    background: #fff;
+    padding: 18px;
+    border-radius: 8px;
+    box-shadow: 0 18px 40px rgba(18,30,40,0.06);
+    border: 1px solid rgba(0,0,0,0.03);
+  }
+
+  /* display area */
+  .display{
+    height:44px;
+    border-radius:8px;
+    background: linear-gradient(180deg,#ffffff,#f6f8f9);
+    border: 1px solid rgba(10,20,25,0.04);
+    margin-bottom:14px;
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    justify-content:flex-end;
+    color:#12323a;
+    font-size:18px;
+    box-shadow: inset 0 2px 6px rgba(255,255,255,0.9);
+    overflow-x:auto;
+  }
+
+  /* 4 column fixed grid: 3 equal small number columns + 1 operator column */
+  .keys{
+    display: grid;
+    grid-template-columns: repeat(4, 48px); /* fixed columns to avoid stretching */
+    gap: 12px;
+    justify-content: center; /* keep grid centered inside card */
+  }
+
+  /* button base */
+  .btn{
+    height:48px;
+    border-radius:8px;
+    border:none;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+    user-select:none;
+    transition: transform .06s ease, box-shadow .06s ease;
+    box-shadow: 0 8px 18px rgba(12,22,28,0.06);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .btn:active{ transform: translateY(2px); box-shadow: 0 4px 10px rgba(12,22,28,0.06); }
+
+  /* numbers - white pills */
+  .num{
+    background:#ffffff;
+    color:#111;
+    border: 1px solid rgba(8,14,20,0.06);
+    box-shadow: 0 6px 14px rgba(12,22,28,0.04), inset 0 1px 0 rgba(255,255,255,0.7);
+  }
+
+  /* operator column (dark) */
+  .op{
+    background:#0b0f12;
+    color:#fff;
+    font-size:18px;
+    box-shadow: 0 8px 20px rgba(6,12,18,0.18);
+  }
+
+  /* clear red */
+  .clear{
+    background: linear-gradient(180deg,#ff4646,#e03434);
+    color:#fff;
+    box-shadow: 0 8px 22px rgba(224,52,52,0.22);
+  }
+
+  /* equals dark like op */
+  .equals{
+    background:#0b0f12;
+    color:#fff;
+  }
+
+  /* Ensure 0 is a single cell (do NOT span columns) */
+  .zero{ grid-column: 2; } /* We'll place it explicitly in grid by order below */
+
+  /* Small screens: scale down slightly */
+  @media (max-width:360px){
+    .card{ width:92%; padding:14px; }
+    .keys{ grid-template-columns: repeat(4, 44px); gap:10px; }
+    .btn{ height:44px; font-size:14px; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap" role="main">
+    <h1>Masai Calculator</h1>
+
+    <div class="card" aria-label="Masai Calculator">
+      <div id="display" class="display" aria-live="polite">0</div>
+
+      <!-- Grid: we carefully place buttons in the order so layout matches pic1 -->
+      <div class="keys" role="group" aria-label="calculator keys">
+        <!-- Row 1 -->
+        <button class="btn num" data-val="1">1</button>
+        <button class="btn num" data-val="2">2</button>
+        <button class="btn num" data-val="3">3</button>
+        <button class="btn op" data-val="+">+</button>
+
+        <!-- Row 2 -->
+        <button class="btn num" data-val="4">4</button>
+        <button class="btn num" data-val="5">5</button>
+        <button class="btn num" data-val="6">6</button>
+        <button class="btn op" data-val="-">−</button>
+
+        <!-- Row 3 -->
+        <button class="btn num" data-val="7">7</button>
+        <button class="btn num" data-val="8">8</button>
+        <button class="btn num" data-val="9">9</button>
+        <button class="btn op" data-val="*">×</button>
+
+        <!-- Row 4 (bottom row must be: C | 0 | = | ÷ ) -->
+        <button id="clear" class="btn clear">C</button>
+        <button class="btn num" data-val="0">0</button>
+        <button id="equals" class="btn equals">=</button>
+        <button class="btn op" data-val="/">÷</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const display = document.getElementById('display');
+  const keys = document.querySelectorAll('.keys .btn');
+  let expr = '';
+  let lastOp = false;
+
+  function refresh(v){ display.textContent = (v === '' ? '0' : v); }
+
+  function push(val){
+    const ops = ['+','-','*','/'];
+    if (ops.includes(val)){
+      if (expr === '' && val !== '-') return; // disallow starting +*/ except minus
+      if (lastOp) {
+        expr = expr.slice(0,-1) + val;
+      } else {
+        expr += val;
+      }
+      lastOp = true;
+    } else {
+      expr += val;
+      lastOp = false;
+    }
+    refresh(expr);
+  }
+
+  keys.forEach(k => {
+    k.addEventListener('click', () => {
+      const v = k.getAttribute('data-val');
+      if (v != null) push(v);
+    });
+  });
+
+  document.getElementById('clear').addEventListener('click', () => {
+    expr = ''; lastOp = false; refresh('0');
+  });
+
+  document.getElementById('equals').addEventListener('click', () => {
+    if (!expr) return;
+    if (/[+\-*/]$/.test(expr)) expr = expr.slice(0,-1);
+    try {
+      const res = Function('"use strict";return (' + expr + ')')();
+      expr = (res === undefined || res === null) ? '' : String(res);
+      lastOp = false;
+      refresh(expr);
+    } catch (e) {
+      refresh('Error'); expr = ''; lastOp = false;
+    }
+  });
+
+  window.addEventListener('keydown', (ev) => {
+    const k = ev.key;
+    if ((/^\d$/).test(k)) push(k);
+    else if (['+','-','*','/'].includes(k)) push(k);
+    else if (k === 'Enter' || k === '=') document.getElementById('equals').click();
+    else if (k === 'Backspace') { expr = expr.slice(0,-1); lastOp = /[+\-*/]$/.test(expr); refresh(expr || '0'); }
+    else if (k === 'Escape') document.getElementById('clear').click();
+  });
+})();
+</script>
+</body>
+</html>
